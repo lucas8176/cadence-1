@@ -1,7 +1,9 @@
 // Cadence Inventory v2: SQLite storage (Node 22.13+, no npm packages). Run: node server.js
-const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto');
-const {DatabaseSync}=require('node:sqlite');
+// Cadence Inventory v2: SQLite storage (Node 22.13+, no npm packages)
+const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
+const { DatabaseSync } = require('node:sqlite');
 const PORT = process.env.PORT || 3000;
+
 // Use /tmp on Vercel so the filesystem is writable, or fallback to local ./data
 const DIR = process.env.VERCEL ? path.join('/tmp', 'data') : (process.env.DATA_DIR || path.join(__dirname, 'data'));
 const PH = path.join(DIR, 'photos');
@@ -9,17 +11,26 @@ const PH = path.join(DIR, 'photos');
 if (!fs.existsSync(PH)) {
   fs.mkdirSync(PH, { recursive: true });
 }
+
 const db = new DatabaseSync(path.join(DIR, 'cadence.sqlite'));
-CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,name TEXT UNIQUE COLLATE NOCASE,email TEXT DEFAULT '',role TEXT DEFAULT 'core',ok INT DEFAULT 0,salt TEXT,hash TEXT,google INT DEFAULT 0,created INT);
-CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user INT REFERENCES users(id) ON DELETE CASCADE,exp INT);
-CREATE TABLE IF NOT EXISTS cats(name TEXT PRIMARY KEY,code TEXT UNIQUE);
-CREATE TABLE IF NOT EXISTS locs(name TEXT PRIMARY KEY,pos INT);
-CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY,v TEXT);
-CREATE TABLE IF NOT EXISTS items(id TEXT PRIMARY KEY,uid TEXT UNIQUE,cat TEXT,brand TEXT,model TEXT,serial TEXT,cond TEXT,loc TEXT,kind TEXT DEFAULT 'single',
- qty INT DEFAULT 1,qout INT DEFAULT 0,status TEXT DEFAULT 'in',holder TEXT,due INT DEFAULT 0,notes TEXT,contents TEXT,dueat TEXT,created INT,updated INT);
-CREATE INDEX IF NOT EXISTS i_cat ON items(cat);CREATE INDEX IF NOT EXISTS i_loc ON items(loc);CREATE INDEX IF NOT EXISTS i_due ON items(due);
-CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY AUTOINCREMENT,item TEXT REFERENCES items(id) ON DELETE CASCADE,type TEXT,txt TEXT,author TEXT,ts INT,photos TEXT DEFAULT '[]',phdel INT DEFAULT 0);
-CREATE INDEX IF NOT EXISTS e_item ON events(item,ts);`);
+
+// Run pragmas and table creations cleanly with backticks so bundlers don't choke on semicolons
+db.exec('PRAGMA journal_mode=WAL;');
+db.exec('PRAGMA foreign_keys=ON;');
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, name TEXT UNIQUE COLLATE NOCASE, email TEXT DEFAULT '', role TEXT DEFAULT 'core', ok INT DEFAULT 0, salt TEXT, hash TEXT, google INT DEFAULT 0, created INT);
+  CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, user INT REFERENCES users(id) ON DELETE CASCADE, exp INT);
+  CREATE TABLE IF NOT EXISTS cats(name TEXT PRIMARY KEY, code TEXT UNIQUE);
+  CREATE TABLE IF NOT EXISTS locs(name TEXT PRIMARY KEY, pos INT);
+  CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);
+  CREATE TABLE IF NOT EXISTS items(id TEXT PRIMARY KEY, uid TEXT UNIQUE, cat TEXT, brand TEXT, model TEXT, serial TEXT, cond TEXT, loc TEXT, kind TEXT DEFAULT 'single', qty INT DEFAULT 1, qout INT DEFAULT 0, status TEXT DEFAULT 'in', holder TEXT, due INT DEFAULT 0, notes TEXT, contents TEXT, dueat TEXT, created INT, updated INT);
+  CREATE INDEX IF NOT EXISTS i_cat ON items(cat);
+  CREATE INDEX IF NOT EXISTS i_loc ON items(loc);
+  CREATE INDEX IF NOT EXISTS i_due ON items(due);
+  CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY AUTOINCREMENT, item TEXT REFERENCES items(id) ON DELETE CASCADE, type TEXT, txt TEXT, author TEXT, ts INT, photos TEXT DEFAULT '[]', phdel INT DEFAULT 0);
+  CREATE INDEX IF NOT EXISTS e_item ON events(item, ts);
+`);
 try{db.exec('ALTER TABLE items ADD COLUMN dueat TEXT')}catch{}
 const q=(s,...a)=>db.prepare(s).all(...a),one=(s,...a)=>db.prepare(s).get(...a),run=(s,...a)=>db.prepare(s).run(...a);
 const meta=(k,v)=>v===undefined?(one('SELECT v FROM meta WHERE k=?',k)||{}).v:run('INSERT INTO meta VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v',k,String(v));
