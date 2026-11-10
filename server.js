@@ -1,10 +1,15 @@
 // Cadence Inventory v2: SQLite storage (Node 22.13+, no npm packages). Run: node server.js
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto');
 const {DatabaseSync}=require('node:sqlite');
-const PORT=process.env.PORT||3000,DIR=process.env.DATA_DIR||path.join(__dirname,'data'),PH=path.join(DIR,'photos');
-fs.mkdirSync(PH,{recursive:true});
-const db=new DatabaseSync(path.join(DIR,'cadence.sqlite'));
-db.exec(`PRAGMA journal_mode=WAL;PRAGMA foreign_keys=ON;
+const PORT = process.env.PORT || 3000;
+// Use /tmp on Vercel so the filesystem is writable, or fallback to local ./data
+const DIR = process.env.VERCEL ? path.join('/tmp', 'data') : (process.env.DATA_DIR || path.join(__dirname, 'data'));
+const PH = path.join(DIR, 'photos');
+
+if (!fs.existsSync(PH)) {
+  fs.mkdirSync(PH, { recursive: true });
+}
+const db = new DatabaseSync(path.join(DIR, 'cadence.sqlite'));
 CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,name TEXT UNIQUE COLLATE NOCASE,email TEXT DEFAULT '',role TEXT DEFAULT 'core',ok INT DEFAULT 0,salt TEXT,hash TEXT,google INT DEFAULT 0,created INT);
 CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user INT REFERENCES users(id) ON DELETE CASCADE,exp INT);
 CREATE TABLE IF NOT EXISTS cats(name TEXT PRIMARY KEY,code TEXT UNIQUE);
