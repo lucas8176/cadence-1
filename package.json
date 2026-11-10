@@ -1,1 +1,1 @@
-{"name": "cadence-inventory", "version": "2.1.0", "private": true, "scripts": {"start": "node --no-warnings server.js"}, "engines": {"node": ">=22.13"}}
+{"name": "cadence-inventory", "version": "2.1.0", "private": true, "scripts": {"start": "node --no-warnings server.cjs"}, "engines": {"node": ">=22.13"}}
